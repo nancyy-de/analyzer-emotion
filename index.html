@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Emotion Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #6c63ff;
+            --primary-light: #a29bfe;
+            --dark: #2d3436;
+            --light: #f5f6fa;
+            --danger: #ff7675;
+            --success: #00b894;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--light);
+            color: var(--dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo-container {
+            margin-bottom: 1rem;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .tagline {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .analyzer-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .input-section {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .result-section {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            height: 100%;
+        }
+
+        h2 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .input-textarea {
+            width: 100%;
+            height: 200px;
+            padding: 1rem;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            resize: none;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .input-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .analyze-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .analyze-btn:hover {
+            background-color: var(--dark);
+            transform: translateY(-2px);
+        }
+
+        .loading-icon {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            display: none;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .visualization-section {
+            margin-top: 2rem;
+        }
+
+        .visualization-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .emotion-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s;
+        }
+
+        .emotion-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .emotion-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .positive { background-color: var(--success); }
+        .negative { background-color: var(--danger); }
+        .neutral { background-color: var(--dark); }
+
+        .emotion-details {
+            flex: 1;
+        }
+
+        .emotion-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .emotion-score {
+            height: 8px;
+            background-color: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .emotion-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            width: 0;
+            transition: width 0.5s ease-out;
+        }
+
+        .features-section {
+            margin-top: 3rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            background-color: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .analyzer-container {
+                flex-direction: column;
+            }
+            
+            .input-textarea {
+                height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/e46a450e-baaf-4188-9372-71b2eb78c25c.png" alt="EmotionSense logo featuring a stylized brain with colorful emotion waves radiating outward" />
+        </div>
+        <h1 class="logo">EmotionSense</h1>
+        <p class="tagline">Understand the emotions hidden in your text</p>
+    </header>
+
+    <main>
+        <div class="analyzer-container">
+            <div class="input-section">
+                <div class="card">
+                    <h2>Enter Your Text</h2>
+                    <textarea class="input-textarea" placeholder="Type or paste your text here to analyze its emotional content (e.g., social media posts, customer feedback, personal journal entries)"></textarea>
+                    <button class="analyze-btn">
+                        <span class="loading-icon"></span>
+                        Analyze Emotions
+                    </button>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <div class="card">
+                    <h2>Emotion Analysis</h2>
+                    <div class="results-placeholder">
+                        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/52af4bbe-d551-470d-814d-5b8143e99859.png" alt="Placeholder for emotion analysis results showing colorful visualization of different emotions" />
+                        <p style="text-align: center; margin-top: 1rem;">Results will appear here after analysis</p>
+                    </div>
+                    <div class="detailed-results" style="display: none;">
+                        <div class="emotion-cards">
+                            <!-- Will be populated by JS -->
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="emotionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualization-section">
+            <h2>Emotion Visualizations</h2>
+            <div class="visualization-grid">
+                <div class="card">
+                    <h3>Emotion Distribution</h3>
+                    <div class="chart-container">
+                        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/5789f98e-3eaa-4c3a-8046-d54f97231211.png" alt="Pie chart showing distribution of different emotions in analyzed text with colorful segments" />
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Emotion Intensity</h3>
+                    <div class="chart-container">
+                        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/831f7abb-08cc-48ca-848c-01ab7f1549ef.png" alt="Bar graph displaying intensity levels of different emotions with gradient colors" />
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>Sentiment Trend</h3>
+                    <div class="chart-container">
+                        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/96c2a913-864f-485b-a26c-a03185b8b8e8.png" alt="Line graph showing sentiment trend throughout the text with peaks and valleys" />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="features-section">
+            <h2>Key Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Real-time Analysis</h3>
+                    <p>Get instant insights into the emotional content of any text with our advanced AI models.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Detailed Breakdown</h3>
+                    <p>View comprehensive analytics for 8 core emotions and various sentiment metrics.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Privacy Focused</h3>
+                    <p>Your data is processed securely and never stored or shared with third parties.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>Live Emotion Analyzer | Public Demo Version</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const analyzeBtn = document.querySelector('.analyze-btn');
+            const loadingIcon = document.querySelector('.loading-icon');
+            const inputTextarea = document.querySelector('.input-textarea');
+            const resultsPlaceholder = document.querySelector('.results-placeholder');
+            const detailedResults = document.querySelector('.detailed-results');
+            const emotionCardsContainer = document.querySelector('.emotion-cards');
+
+            // Mock emotion data for demo purposes
+            const emotions = [
+                { name: 'Joy', score: 0.75, category: 'positive', icon: '😊' },
+                { name: 'Anger', score: 0.12, category: 'negative', icon: '😠' },
+                { name: 'Sadness', score: 0.23, category: 'negative', icon: '😢' },
+                { name: 'Fear', score: 0.08, category: 'negative', icon: '😨' },
+                { name: 'Surprise', score: 0.15, category: 'neutral', icon: '😮' },
+                { name: 'Love', score: 0.45, category: 'positive', icon: '❤️' },
+                { name: 'Trust', score: 0.32, category: 'positive', icon: '👍' },
+                { name: 'Anticipation', score: 0.19, category: 'neutral', icon: '👀' }
+            ];
+
+            analyzeBtn.addEventListener('click', function() {
+                const text = inputTextarea.value.trim();
+                
+                if (!text) {
+                    alert('Please enter some text to analyze');
+                    return;
+                }
+
+                // Show loading state
+                analyzeBtn.disabled = true;
+                loadingIcon.style.display = 'block';
+
+                // Simulate API call with timeout
+                setTimeout(function() {
+                    analyzeText(text);
+                    
+                    // Hide loading state
+                    analyzeBtn.disabled = false;
+                    loadingIcon.style.display = 'none';
+                }, 1500);
+            });
+
+            function analyzeText(text) {
+                // Hide placeholder and show results
+                resultsPlaceholder.style.display = 'none';
+                detailedResults.style.display = 'block';
+
+                // Update emotion cards
+                renderEmotionCards();
+
+                // Create charts
+                createEmotionChart();
+            }
+
+            function renderEmotionCards() {
+                emotionCardsContainer.innerHTML = '';
+                
+                emotions.forEach(emotion => {
+                    const card = document.createElement('div');
+                    card.className = 'emotion-card';
+                    
+                    card.innerHTML = `
+                        <div class="emotion-icon ${emotion.category}">${emotion.icon}</div>
+                        <div class="emotion-details">
+                            <div class="emotion-name">${emotion.name}</div>
+                            <div class="emotion-score">
+                                <div class="emotion-bar" style="width: ${emotion.score * 100}%"></div>
+                            </div>
+                            <span class="emotion-value">${Math.round(emotion.score * 100)}%</span>
+                        </div>
+                    `;
+                    
+                    emotionCardsContainer.appendChild(card);
+                });
+            }
+
+            function createEmotionChart() {
+                const ctx = document.getElementById('emotionChart').getContext('2d');
+                
+                // Prepare chart data
+                const labels = emotions.map(e => e.name);
+                const data = emotions.map(e => e.score * 100);
+                const backgroundColors = emotions.map(e => {
+                    if (e.category === 'positive') return '#00b894';
+                    if (e.category === 'negative') return '#ff7675';
+                    return '#636e72';
+                });
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Emotion Score (%)',
+                            data: data,
+                            backgroundColor: backgroundColors,
+                            borderColor: backgroundColors.map(c => `${c}cc`),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value + '%';
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.parsed.y + '%';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
